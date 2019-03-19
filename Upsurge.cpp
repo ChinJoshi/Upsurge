@@ -69,12 +69,20 @@
 		else{
 			try{
 				cv::Mat tiny;
+				std::cout<<"before resize"<<std::endl;
 				cv::resize(color,tiny,cv::Size(),0.5,0.5,CV_INTER_AREA);
+				std::cout<<"After Resize"<<std::endl;
 				std::vector<uchar> buf;
+				std::cout<<"Before Encoding"<<std::endl;
 				cv::imencode(".jpg",tiny,buf,compressionParams);
+				std::cout<<"After Encoding"<<std::endl;
 				uchar *encImg = reinterpret_cast<uchar*>(buf.data());
+				std::cout<<"Before base64"<<std::endl;
 				std::string encoded = base64_encode(encImg, buf.size());
+				std::cout<<"After base64"<<std::endl;
+				std::cout<<"Before Write"<<std::endl;
 				boost::asio::write(sock, boost::asio::buffer(encoded+"\n"));
+				std::cout<<"After Write"<<std::endl;
 			}
 			catch(const boost::system::system_error &ex){
 				std::cout<<"Frame Memed"<<std::endl;

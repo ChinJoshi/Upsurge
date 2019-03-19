@@ -58,7 +58,7 @@ int main(){
 	values["rightWheelXCameraOffset"] = 15;
 	values["rightWheelYCameraOffset"] = -6;
 	values["wheelDiameter"] = 6;
-	values["jpegCompression"] = 30;
+	values["jpegCompression"] = 20;
 	
 	Upsurge vision(values);
 	vision.start(values);
@@ -83,7 +83,9 @@ int main(){
 		std::chrono::duration<double> elapsed = finish - start;
 		std::cout << "FPS: " << 1/(elapsed.count()) <<std::endl;
 		vision.sendData(dataSocket);
+		std::cout<<"Sent Data"<<std::endl;
 		vision.sendFrame(frameSocket);
+		std::cout<<"Sent Frame"<<std::endl;
 		vision.showFrames();
 		vision.showProcFrames();
 	}
