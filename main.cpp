@@ -58,20 +58,22 @@ int main(){
 	values["rightWheelXCameraOffset"] = 15;
 	values["rightWheelYCameraOffset"] = -6;
 	values["wheelDiameter"] = 6;
+	values["jpegCompression"] = 30;
 	
 	Upsurge vision(values);
 	vision.start(values);
 	
 	
-	
 	boost::asio::io_service ioService;
 	boost::asio::ip::tcp::socket dataSocket(ioService);	
+	
+	boost::asio::ip::tcp::socket frameSocket(ioService);
 	
 	std::cout<<vision.getRioIP()<<std::endl;	
 
 	//Connect front drivetrain stream
 	vision.connectTCPStream(dataSocket, vision.getRioIP(), 5431);
-	
+	vision.connectTCPStream(frameSocket, vision.getRioIP(), 5432);
 		
 	
 	while(true){
@@ -80,6 +82,8 @@ int main(){
 		auto finish = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = finish - start;
 		std::cout << "FPS: " << 1/(elapsed.count()) <<std::endl;
+		vision.sendData(dataSocket);
+		vision.sendFrame(frameSocket);
 		vision.showFrames();
 		vision.showProcFrames();
 	}

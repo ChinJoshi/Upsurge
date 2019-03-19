@@ -32,6 +32,7 @@ private:
 	double circ;
 	float rightNeededTravel;
 	float leftNeededTravel;
+	std::vector<int> compressionParams;
 
 public:
 	Upsurge(std::map<std::string,double>& values);
@@ -47,4 +48,5 @@ public:
 	void connectTCPStream(boost::asio::ip::tcp::socket &sock ,std::string rawIP,unsigned short int portNum); 
 	void sendData(boost::asio::ip::tcp::socket &sock);
 	void sendFrame(boost::asio::ip::tcp::socket &sock);
+	float euclidianDistance(float x1, float y1, float x2, float y2);
 };

@@ -7,6 +7,9 @@
 		DPP = 69.4/values["procWidth"];
 		pi = atan(1) * 4;
 		circ = pi*values["wheelDiameter"];
+		pairFound=false;
+		compressionParams.push_back(CV_IMWRITE_JPEG_QUALITY);
+		compressionParams.push_back(values["jpegCompression"]);
 	}
 
 	std::string Upsurge::getRioIP(){
@@ -37,15 +40,25 @@
 			std::cout << "AN ERROR HAS OCCURED IN CONNECTING!!!" << std::endl;
 			std::cout << ec.message() << std::endl;;
 		}
+		else{	
+			std::cout<<"Succesfully Connected"<<std::endl;
+		}
 	}
 
 	void Upsurge::sendData(boost::asio::ip::tcp::socket &sock){
-		if(pairFound){
-			std::string angleString = std::to_string(pairAngle);
-			boost::asio::write(sock, boost::asio::buffer(angleString));
+		try{
+			if(pairFound=true){
+				std::string data = std::to_string(leftNeededTravel) + ","  + std::to_string(rightNeededTravel)+"\n";
+				boost::asio::write(sock, boost::asio::buffer(data));
+				std::cout<<"Sent Pair Data"<<std::endl;
+			}
+			else{
+				std::cout<<"Send Null"<<std::endl;
+				boost::asio::write(sock, boost::asio::buffer("null,null\n"));
+			}
 		}
-		else{
-			std::cout<<"Cannot Send Data Because No Tape Pair Found Yet"<<std::endl;
+		catch(const boost::system::system_error &ex){
+			std::cout << "Memed"<<std::endl;
 		}
 	}
 
@@ -54,13 +67,18 @@
 			std::cout<<"Cannot Send Because No Color Image Yet"<<std::endl;
 		}
 		else{
-			cv::Mat tiny;
-			cv::resize(color,tiny,cv::Size(),0.5,0.5,CV_INTER_AREA);
-			std::vector<uchar> buf;
-			cv::imencode(".jpg",tiny,buf);
-			uchar *encImg = reinterpret_cast<uchar*>(buf.data());
-			std::string encoded = base64_encode(encImg, buf.size());
-			boost::asio::write(sock, boost::asio::buffer(encoded));
+			try{
+				cv::Mat tiny;
+				cv::resize(color,tiny,cv::Size(),0.5,0.5,CV_INTER_AREA);
+				std::vector<uchar> buf;
+				cv::imencode(".jpg",tiny,buf,compressionParams);
+				uchar *encImg = reinterpret_cast<uchar*>(buf.data());
+				std::string encoded = base64_encode(encImg, buf.size());
+				boost::asio::write(sock, boost::asio::buffer(encoded+"\n"));
+			}
+			catch(const boost::system::system_error &ex){
+				std::cout<<"Frame Memed"<<std::endl;
+			}
 		}
 	}
 
@@ -76,6 +94,7 @@
 	}
 
 	std::array<float,4> Upsurge::procFrames(std::map<std::string,double>& values){
+		pairFound=false;
 		frames = pipe.wait_for_frames();
 		rs2::align align(RS2_STREAM_COLOR);
 		frames = align.process(frames);
@@ -146,15 +165,55 @@
 					float slope = (rightTapeY-leftTapeY)/(rightTapeX-leftTapeX);
 					float recipSlope = -1/slope;
 
-					float leftTargetXOffsetX = leftTapeX-((values["leftTargetXOffset"])/(sqrt(1+(slope*slope))));
-					float leftTargetXOffsetY = leftTapeY-(slope*((values["leftTargetXOffset"])/(sqrt(1+(slope*slope)))));  //STILL NEED TO ACCOUNT FOR PERPENDICULAR LINE
-					float rightTargetXOffsetX = rightTapeX + ((values["rightTargetXOffset"])/(sqrt(1+(slope*slope)))); //STILL NEED TO ACCOUNT FOR PERPENDICULAR LINE
-					float rightTargetXOffsetY = rightTapeY + (slope*((values["rightTargetXOffset"])/(sqrt(1+(slope*slope))))); //STILL NEED TO ACCOUNT FOR PERPENDICULAR LINE
+					float leftTargetXOffsetX;
+					float leftTargetXOffsetY; 
+					float rightTargetXOffsetX;
+					float rightTargetXOffsetY;
+
+					float leftTargetYOffsetX;
+					float leftTargetYOffsetY;
+					float rightTargetYOffsetX; 
+					float rightTargetYOffsetY; 
+					if(leftTapeY>rightTapeY){
+						leftTargetXOffsetX = leftTapeX - ((values["leftTargetXOffset"])/(sqrt(1+(slope*slope))));
+						
+						leftTargetXOffsetY = leftTapeY + ( (values["leftTargetXOffset"]) / ( sqrt(( 1 + ( (1)/(slope*slope) ) )) ) );
+						
+						rightTargetXOffsetX = rightTapeX + ( (values["rightTargetXOffset"])/(sqrt(1+(slope*slope)))  );
+						
+						rightTargetXOffsetY = rightTapeY - ( (values["rightTargetXOffset"]) / (sqrt((1 + ( (1)/(slope*slope) ) ) ))  );
+
+
+						leftTargetYOffsetX = leftTargetXOffsetX + ((values["leftTargetYOffset"])/(sqrt((1)+(recipSlope*recipSlope))));
+
+						leftTargetYOffsetY = leftTargetXOffsetY - ((values["leftTargetYOffset"])/(sqrt(((1)+(1/(recipSlope*recipSlope))))));
+
+						rightTargetYOffsetX = rightTargetXOffsetX + ((values["rightTargetYOffset"])/(sqrt(((1)+(recipSlope*recipSlope)))));
+
+						rightTargetYOffsetY = rightTargetXOffsetY - ((values["righttargetYOffset"])/(sqrt(((1)+((1)/(recipSlope*recipSlope))))));
+					}
+					else{
+						leftTargetXOffsetX = leftTapeX - ((values["leftTargetXOffset"])/(sqrt(1+(slope*slope))));
+						
+						leftTargetXOffsetY = leftTapeY - ( (values["leftTargetXOffset"]) / ( sqrt(( 1 + ( (1)/(slope*slope) ) )) ) );
+						
+						rightTargetXOffsetX = rightTapeX + ( (values["rightTargetXOffset"])/(sqrt(1+(slope*slope)))  );
+						
+						rightTargetXOffsetY = rightTapeY + ( (values["rightTargetXOffset"]) / (sqrt((1 + ( (1)/(slope*slope) ) ) ))  );
+
+
+						leftTargetYOffsetX = leftTargetXOffsetX + ((values["leftTargetYOffset"])/(sqrt((1)+(recipSlope*recipSlope))));
+
+						leftTargetYOffsetY = leftTargetXOffsetY - ((values["leftTargetYOffset"])/(sqrt(((1)+(1/(recipSlope*recipSlope))))));
+
+						rightTargetYOffsetX = rightTargetXOffsetX + ((values["rightTargetYOffset"])/(sqrt(((1)+(recipSlope*recipSlope)))));
+
+						rightTargetYOffsetY = rightTargetXOffsetY - ((values["righttargetYOffset"])/(sqrt(((1)+((1)/(recipSlope*recipSlope))))));
+					}
+
+
 					
-					float leftTargetYOffsetX = leftTargetXOffsetX - ((values["leftTargetYOffset"]) / (sqrt(1+(recipSlope*recipSlope))));
-					float leftTargetYOffsetY = leftTargetXOffsetY - (recipSlope *  ((values["leftTargetYOffset"]) / (sqrt(1+(recipSlope*recipSlope)))));
-					float rightTargetYOffsetX = rightTargetXOffsetX - ((values["rightTargetYOffset"]) / (sqrt(1+(recipSlope*recipSlope))));
-					float rightTargetYOffsetY = rightTargetXOffsetY -  (recipSlope *  ((values["rightTargetYOffset"]) / (sqrt(1+(recipSlope*recipSlope)))));
+					
 					
 					float rightTargetRelativeXOffset = rightTargetYOffsetX;
 					float rightTargetRelativeYOffset = rightTargetYOffsetY;
@@ -162,8 +221,8 @@
 					float leftTargetRelativeYOffset = leftTargetYOffsetY;
 
 
-					leftNeededTravel = sqrt( pow(((leftTapeX+values["leftTargetRelativeXOffset"])-(values["cameraX"]+values["leftWheelXCameraOffset"])), 2) + pow( ((leftTapeY+values["leftTargetRelativeYOffset"])-( values["cameraY"]+values["leftWheelYCameraOffset"]  )  ),2)  );
-					rightNeededTravel = sqrt( pow(((rightTapeX+values["rightTargetRelativeXOffset"])-(values["cameraX"]+values["rightWheelXCameraOffset"])), 2) + pow( ((rightTapeY+values["rightTargetRelativeYOffset"])-( values["cameraY"]+values["rightWheelYCameraOffset"]  )  ),2)  );
+					leftNeededTravel = euclidianDistance(leftTargetRelativeXOffset,leftTargetRelativeYOffset, values["leftWheelXCameraOffset"], values["leftWheelYCameraOffset"]);
+					rightNeededTravel =  euclidianDistance(rightTargetRelativeXOffset, rightTargetRelativeYOffset, values["rightWheelXCameraOffset"], values["rightWheelYCameraOffset"] );
 
 					std::cout<<"Left Depth Distance: "<< leftTapeY <<std::endl;
 					std::cout<<"Right Depth Distance: "<< rightTapeY  <<std::endl;
@@ -183,6 +242,10 @@
 		}
 		
 			
+	}
+
+	float Upsurge::euclidianDistance(float x1, float y1, float x2, float y2){
+		return sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2) * 1.0); 
 	}
 	
 	void Upsurge::showFrames(){
